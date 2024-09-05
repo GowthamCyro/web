@@ -1,5 +1,6 @@
 import {v2 as cloudinary} from "cloudinary";
 import fs from "fs";
+import {v4 as uuidv4 } from 'uuid';
 
 cloudinary.config({
     cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
@@ -10,18 +11,20 @@ cloudinary.config({
 
 const uploadOnCloudinary = async (localFilePath) => {
     try {
+        const publicId = uuidv4();
+
         if(!localFilePath) return null
 
         const response = await cloudinary.uploader.upload(localFilePath,{
+            public_id : publicId,
             resource_type : "auto"
         })
 
-        console.log("File is uploaded on cloudinary successfully ",response.url);
+        fs.unlinkSync(localFilePath)
         return response
     } catch (error) {
-        fs.unlinkSync(localFilePath)
+        fs.unlinkSync(localFilePath);
     }
 }
-
 
 export {uploadOnCloudinary}
