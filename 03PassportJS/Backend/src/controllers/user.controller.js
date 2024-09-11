@@ -1,9 +1,11 @@
 import {asyncHandler} from '../utils/asyncHandler.js';
 import {ApiError} from "../utils/ApiError.js";
-import {User} from "../models/user.model.js";
-import {uploadOnCloudinary} from "../utils/cloudinary.js";
+import {User,Token} from "../models/index.js";
+import {deleteOnCloudinary, uploadOnCloudinary} from "../utils/cloudinary.js";
 import {ApiResponse} from "../utils/ApiResponse.js";
 import jwt from "jsonwebtoken";
+import {sendMail} from "../utils/sendMail.js";
+import crypto from "crypto";
 
 const generateAccessAndRefreshTokens = async(userId) => {
     try {
@@ -20,6 +22,39 @@ const generateAccessAndRefreshTokens = async(userId) => {
         throw new ApiError(500,"Something went wrong while generating refresh and access tokens");
     }
 }
+
+const verifyEmail = asyncHandler( async(req,res) =>  {
+    const user = await User.findById(req.params.id);
+
+    if(!user){
+        throw new ApiError(401,"User Not Exist ! Invalid Link");
+    }
+
+    const token = await Token.findOne({
+        userId : user._id,
+        token : req.params.token
+    })
+
+    if(!token){
+        throw new ApiError(401,"Token Not Exist ! Invalid Link");
+    }
+
+    await User.findByIdAndUpdate(
+        user._id,
+        {
+            $set : {
+                verified : true
+            }
+        },
+    )
+
+    await token.deleteOne()
+
+    return res.status(200)
+    .json(
+        new ApiResponse(200,{},"Email Verified Successfully")
+    )
+})
 
 const registerUser = asyncHandler( async (req,res) => {
 
@@ -87,8 +122,16 @@ const registerUser = asyncHandler( async (req,res) => {
         throw new ApiError(501,"Something went wrong while creating the user");
     }
     
+    const token = await new Token({
+        userId : createdUser._id,
+        token : crypto.randomBytes(32).toString("hex")
+    }).save();
+
+    const url = `${process.env.BASE_URL}/users/${createdUser._id}/verify/${token.token}`;
+    await sendMail(createdUser.email,"Email Verification",url);
+
     return res.status(201).json(
-        new ApiResponse(200,createdUser,"New User Registered Successfully")
+        new ApiResponse(200,createdUser,"Verification Link send to the email ! Please Verify !!")
     );
 })
 
@@ -109,6 +152,22 @@ const loginUser = asyncHandler( async(req,res) => {
 
     if(!user){
         throw new ApiError(404,"User not Found!! Please Register")
+    }
+
+    if(!user.verified){
+        let token = await Token.findOne({userId : user._id})
+        if(!token){
+            const token = await new Token({
+                userId : user._id,
+                token : crypto.randomBytes(32).toString("hex")
+            }).save();
+        
+            const url = `${process.env.BASE_URL}/users/${user._id}/verify/${token.token}`;
+            await sendMail(user.email,"Email Verification",url);
+        }
+        return res.status(400).json(
+            new ApiResponse(200,{},"Verification Link send to the email ! Please Verify !!")
+        );
     }
 
     const isPasswordValid = await user.isPasswordCorrect(password)
@@ -208,9 +267,154 @@ const refreshAccessToken = asyncHandler( async(req,res) => {
     }
 })
 
+const changeCurrentPassword = asyncHandler( async(req,res) => {
+    const {oldPassword,newPassword} = req.body
+
+    if(!oldPassword || !newPassword){
+        throw new ApiError(401,"Values should be given");
+    }
+    const user = await User.findById(req.user?._id);
+    const isCorrectPassword = await user.isPasswordCorrect(oldPassword);
+
+    if(!isCorrectPassword){
+        throw new ApiError(401,'Invalid old Password')
+    }
+
+    user.password = newPassword 
+    await user.save({validateBeforeSave : false})
+
+    return res.status(200)
+    .json(
+        new ApiResponse(200,{},"Password Updated Successfully")
+    )
+})
+
+const getCurrentUser = asyncHandler ( async(req,res) => {
+    return res.status(200)
+    .json(
+        new ApiResponse(200,req.user,"Current User Fecteched Successfully")
+    )
+})
+
+const updateAccountDetails = asyncHandler (async(req,res) => {
+
+    const {username,fullName,email} = req.body
+
+    if(!fullName && !email && !username){
+        throw new ApiError(401,"Values cannot be empty to update");
+    }
+
+    const updateFeilds = {}
+
+    if(username) updateFeilds.username = username;
+    if(fullName) updateFeilds.fullName = fullName;
+    if(email) updateFeilds.email = email;
+ 
+    const user = await User.findByIdAndUpdate(
+        req.user?._id,
+        {
+            $set : updateFeilds
+        },
+        {
+            new : true
+        }
+    ).select("-password")
+
+    return res.status(200)
+    .json(new ApiResponse(200,user,"Account Details Updated Successfully"))
+
+})
+
+const updateUserAvatar = asyncHandler( async(req,res) => {
+    const avatarFilePath = req.file?.path;
+    const deleteAvatar = req.user?.avatar?.public_id;
+
+    if(!avatarFilePath){
+        throw new ApiError(401,"Avatar file not uploaded Successfully");
+    }
+
+    const avatar = await uploadOnCloudinary(avatarFilePath)
+
+    if(!avatar.url){
+        throw new ApiError(401,"Avatar file not uploaded Successfully into Cloudinary");
+    }
+
+    const user = await User.findByIdAndUpdate(
+        req.user?._id,
+        {
+            $set : {
+                avatar : {
+                    public_id : avatar.public_id,
+                    url : avatar.url
+                }
+            }
+        },
+        {
+            new : true
+        }
+    ).select("-password")
+
+    if(deleteAvatar && user.avatar.public_id){
+        await deleteOnCloudinary(deleteAvatar);
+    }
+
+    return res
+    .status(200)
+    .json(
+        new ApiResponse(200, user, "Avatar image updated successfully")
+    )
+})
+
+const updateUserCoverImage = asyncHandler( async(req,res) => {
+    const coverImageFilePath = req.file?.path;
+    const deleteCoverImage = req.user?.coverImage?.public_id;
+
+    if(!coverImageFilePath){
+        throw new ApiError(401,"Avatar file not uploaded Successfully");
+    }
+
+    const coverImage = await uploadOnCloudinary(coverImageFilePath);
+
+    if(!coverImage.url){
+        throw new ApiError(401,"Avatar file not uploaded Successfully into Cloudinary");
+    }
+
+    const user = await User.findByIdAndUpdate(
+        req.user?._id,
+        {
+            $set : {
+                coverImage : {
+                    public_id : coverImage.public_id,
+                    url : coverImage.url
+                }
+            }
+        },
+        {
+            new : true
+        }
+    ).select("-password")
+
+    if(deleteCoverImage && user.coverImage.public_id){
+        await deleteOnCloudinary(deleteCoverImage);
+    }
+
+    return res
+    .status(200)
+    .json(
+        new ApiResponse(200, user, "Cover Image updated successfully")
+    )
+})
+
+
 export {
     registerUser,
     loginUser,
     logoutUser,
-    refreshAccessToken
+    refreshAccessToken,
+    changeCurrentPassword,
+    getCurrentUser,
+    updateAccountDetails,
+    updateUserAvatar,
+    updateUserCoverImage,
+    verifyEmail
 }
