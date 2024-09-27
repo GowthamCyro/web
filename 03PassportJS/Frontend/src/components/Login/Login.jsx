@@ -28,10 +28,9 @@ function Login() {
       'password' : password
     }
 
-    axios.post('http://localhost:7000/api/v1/users/login',fd)
+    axios.post('http://localhost:7000/api/v1/users/login',fd,{ withCredentials: true })
     .then(function (response) {
       setLoading(false);
-      console.log(response)
       toast.success("User Logged In successfully!",{
         autoClose: 3000,  
         hideProgressBar: true,
@@ -42,7 +41,7 @@ function Login() {
         }
       })
       setTimeout(()=>{
-        navigate('/')
+        navigate('/',{ state: { userLogged : true }})
       },2000)
     })
     .catch(function (error) {
@@ -211,7 +210,7 @@ function Login() {
           </div>
         </div>
       </div>
-      <ToastContainer />
+      
     </>
   )
 }

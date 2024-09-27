@@ -24,7 +24,7 @@ router.route("/refreshToken").post(refreshAccessToken)
 router.route("/:id/verify/:token").get(verifyEmail)
 
 // secured routes
-router.route("/logout").post(verifyJWT,logoutUser);
+router.route("/logout").get(verifyJWT,logoutUser);
 router.route("/changeCurrentPassword").post(verifyJWT,changeCurrentPassword);
 router.route("/changeAvatar").patch(verifyJWT,upload.single("avatar"),updateUserAvatar);
 router.route("/changeCoverImage").patch(verifyJWT,upload.single("coverImage"),updateUserCoverImage);

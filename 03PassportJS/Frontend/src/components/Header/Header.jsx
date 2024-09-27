@@ -1,7 +1,25 @@
-import React from 'react'
-import {Link,NavLink} from 'react-router-dom'
+import axios from 'axios'
+import React, { useEffect } from 'react'
+import {Link,NavLink,useNavigate} from 'react-router-dom'
 
-function Header() {
+function Header({user,setUser}) {
+    const navigate = useNavigate();
+
+    const handleLogout = () => {
+        try {
+            axios.get('http://localhost:7000/api/v1/users/logout', { withCredentials: true })
+            .then((response) => {
+                setUser(null); 
+                navigate('/'); 
+            })
+            
+        } catch (error) {
+            console.log(error);
+        }
+    }
+
+    
+
   return (
     <header className="shadow sticky z-50 top-0">
         <nav className="bg-white border-gray-200 px-4 lg:px-6 py-2.5">
@@ -14,18 +32,37 @@ function Header() {
                     />
                 </Link>
                 <div className="flex items-center lg:order-2">
-                    <Link
-                        to="/signIn"
-                        className="text-gray-800 hover:bg-gray-50 focus:ring-4 focus:ring-gray-300 font-medium rounded-lg text-sm px-4 lg:px-5 py-2 lg:py-2.5 mr-2 focus:outline-none"
-                    >
-                        Log in
-                    </Link>
-                    <Link
-                        to="/signUp"
-                        className="text-white bg-orange-700 hover:bg-orange-800 focus:ring-4 focus:ring-orange-300 font-medium rounded-lg text-sm px-4 lg:px-5 py-2 lg:py-2.5 mr-2 focus:outline-none"
-                    >
-                        Get started
-                    </Link>
+                    {user?(
+                        <>
+                        <Link
+                            to="/signIn"
+                            className="text-gray-800 hover:bg-gray-50 focus:ring-4 focus:ring-gray-300 font-medium rounded-lg text-sm px-4 lg:px-5 py-2 lg:py-2.5 mr-2 focus:outline-none"
+                        >
+                            {user.username}
+                        </Link>
+                        <Link
+                            onClick={handleLogout}
+                            className="text-white bg-orange-700 hover:bg-orange-800 focus:ring-4 focus:ring-orange-300 font-medium rounded-lg text-sm px-4 lg:px-5 py-2 lg:py-2.5 mr-2 focus:outline-none"
+                        >
+                            Logout
+                        </Link>
+                        </>
+                    ):(
+                        <>
+                        <Link
+                            to="/signIn"
+                            className="text-gray-800 hover:bg-gray-50 focus:ring-4 focus:ring-gray-300 font-medium rounded-lg text-sm px-4 lg:px-5 py-2 lg:py-2.5 mr-2 focus:outline-none"
+                        >
+                            Log in
+                        </Link>
+                        <Link
+                            to="/signUp"
+                            className="text-white bg-orange-700 hover:bg-orange-800 focus:ring-4 focus:ring-orange-300 font-medium rounded-lg text-sm px-4 lg:px-5 py-2 lg:py-2.5 mr-2 focus:outline-none"
+                        >
+                            Get started
+                        </Link>
+                        </>
+                    )}
                 </div>
                 <div className="hidden justify-between items-center w-full lg:flex lg:w-auto lg:order-1"
                     id="mobile-menu-2"

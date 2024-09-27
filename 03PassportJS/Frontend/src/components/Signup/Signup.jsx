@@ -302,7 +302,6 @@ function Signup() {
         
       </div>
       
-      <ToastContainer />
     </>
   )
 }

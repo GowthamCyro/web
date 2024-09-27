@@ -128,7 +128,7 @@ const registerUser = asyncHandler( async (req,res) => {
     }).save();
 
     const url = `${process.env.BASE_URL}/users/${createdUser._id}/verify/${token.token}`;
-    await sendMail(createdUser.email,"Email Verification",url);
+    await sendMail(createdUser.email,"Email Verification",url, createdUser._id);
 
     return res.status(201).json(
         new ApiResponse(200,createdUser,"Verification Link send to the email ! Please Verify !!")
@@ -182,9 +182,8 @@ const loginUser = asyncHandler( async(req,res) => {
 
     const options = {
         httpOnly : true,
-        secure : true
+        // secure : true  # will be used only when in https not localhost
     }
-
     return res
     .status(200)
     .cookie("accessToken",accessToken,options)
@@ -213,8 +212,7 @@ const logoutUser = asyncHandler(async(req,res) => {
     )
 
     const options = {
-        httpOnly : true,
-        secure : true
+        httpOnly : true
     }
 
     return res.

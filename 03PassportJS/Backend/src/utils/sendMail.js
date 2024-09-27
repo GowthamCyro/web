@@ -1,6 +1,6 @@
 import nodemailer from "nodemailer";
 
-const sendMail = async(email,subject,text) => {
+const sendMail = async(email,subject,text,userId) => {
     try {
         const transporter = nodemailer.createTransport({
             host : process.env.HOST,
@@ -13,12 +13,17 @@ const sendMail = async(email,subject,text) => {
             }
         })
 
-        await transporter.sendMail({
+        let info = await transporter.sendMail({
             from : process.env.USER,
             to : email,
             subject : subject,
-            text : text
+            text : text,
+            headers: {
+                'X-User-ID': userId 
+            }
         })
+
+        console.log(info);
 
         console.log("Email Sent Successfully");
     } catch (error) {
