@@ -51,9 +51,9 @@ tempUserSchema.pre("save", async function (next) {
     next()
 })
 
-tempUserSchema.methods.isPasswordCorrect = async function (password) {
-    return await bcrypt.compare(password,this.password)
-}
+// tempUserSchema.methods.isPasswordCorrect = async function (password) {
+//     return await bcrypt.compare(password,this.password)
+// }
 
 
 export const TempUser = mongoose.model("TempUser",tempUserSchema)

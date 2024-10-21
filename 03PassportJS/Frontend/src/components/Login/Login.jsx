@@ -28,7 +28,7 @@ function Login() {
       'password' : password
     }
 
-    axios.post('http://localhost:7000/api/v1/users/login',fd,{ withCredentials: true })
+    axios.post('api/v1/users/login',fd,{ withCredentials: true })
     .then(function (response) {
       setLoading(false);
       toast.success("User Logged In successfully!",{
@@ -65,9 +65,11 @@ function Login() {
                   errorMessage = 'Registration failed! Unknown error';
               }
           }
-      } else if (error.request) {
+      } 
+      else if (error.request) {
           errorMessage = 'Registration failed! No response from server';
-      } else {
+      } 
+      else {
           errorMessage = `Registration failed! ${error.message}`;
       }
 
@@ -83,6 +85,19 @@ function Login() {
 
       console.log(error);
     });
+  }
+
+  const googleLogin = () => {
+      window.open("http://localhost:7000/api/v1/socialSign/google","_self")
+      .then(function(response){
+        console.log(response);
+        setTimeout(()=>{
+          navigate('/',{ state: { userLogged : true }})
+        },2000)
+      })
+      .catch((error) => {
+        console.log(error);
+      })
   }
 
   return (
@@ -122,7 +137,7 @@ function Login() {
                 <div className="mr-4 flex items-center">
                   
                 </div>
-                <p className="cursor-pointer text-sm text-white hover:underline">Forgot password?</p>
+                <span className="cursor-pointer text-sm text-white hover:underline" onClick={() => navigate('/forgotPassword')}>Forgot password?</span>
               </div>
               <button
                 className="w-full bg-[#ae7aff] p-3 text-center font-bold text-black shadow-[5px_5px_0px_0px_#4f4e4e] transition-all duration-150 ease-in-out active:translate-x-[5px] active:translate-y-[5px] active:shadow-[0px_0px_0px_0px_#4f4e4e]"
@@ -160,7 +175,7 @@ function Login() {
                 <p className="text-sm">OR</p>
                 <hr className="w-full border-[0.1px] border-white" />
               </div>
-              <button className="inline-flex w-full items-center justify-center gap-3 border-[1px] border-white bg-black p-3 text-center text-white">
+              <button className="inline-flex w-full items-center justify-center gap-3 border-[1px] border-white bg-black p-3 text-center text-white" onClick={googleLogin}>
                 <svg
                   xmlns="http://www.w3.org/2000/svg"
                   height="24"

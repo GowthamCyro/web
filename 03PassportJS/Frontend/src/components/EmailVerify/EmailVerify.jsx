@@ -10,7 +10,7 @@ function EmailVerify() {
     const handleVerifyEmail = async () => {
         setLoading(true);
         try {
-            const url = `http://localhost:7000/api/v1/users/${param.id}/verify/${param.token}`;
+            const url = `api/v1/users/${param.id}/verify/${param.token}`;
             await axios.get(url);
             setValidUrl(true);   
         } catch (error) {

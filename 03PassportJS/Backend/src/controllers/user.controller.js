@@ -1,11 +1,13 @@
 import {asyncHandler} from '../utils/asyncHandler.js';
 import {ApiError} from "../utils/ApiError.js";
-import {User,Token} from "../models/index.js";
+import {User,Token, TempUser} from "../models/index.js";
 import {deleteOnCloudinary, uploadOnCloudinary} from "../utils/cloudinary.js";
 import {ApiResponse} from "../utils/ApiResponse.js";
 import jwt from "jsonwebtoken";
-import {sendMail} from "../utils/sendMail.js";
+import {sendMail,checkEmailBounce} from "../utils/sendMail.js";
 import crypto from "crypto";
+
+const delay = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
 const generateAccessAndRefreshTokens = async(userId) => {
     try {
@@ -24,14 +26,14 @@ const generateAccessAndRefreshTokens = async(userId) => {
 }
 
 const verifyEmail = asyncHandler( async(req,res) =>  {
-    const user = await User.findById(req.params.id);
+    const tempUser = await TempUser.findById(req.params.id);
 
-    if(!user){
+    if(!tempUser){
         throw new ApiError(401,"User Not Exist ! Invalid Link");
     }
 
     const token = await Token.findOne({
-        userId : user._id,
+        userId : tempUser._id,
         token : req.params.token
     })
 
@@ -39,16 +41,25 @@ const verifyEmail = asyncHandler( async(req,res) =>  {
         throw new ApiError(401,"Token Not Exist ! Invalid Link");
     }
 
-    await User.findByIdAndUpdate(
-        user._id,
-        {
-            $set : {
-                verified : true
-            }
+    const user = await User.create({
+        fullName: tempUser.fullName,
+        username: tempUser.username,
+        email: tempUser.email,
+        password: tempUser.password,
+        avatar : {
+            public_id : tempUser.avatar.public_id,
+            url : tempUser.avatar.url
         },
-    )
+        coverImage: {
+            public_id : tempUser.coverImage.public_id || "",
+            url : tempUser.coverImage.url || ""
+        },
+        verified : true
+    });
 
     await token.deleteOne()
+    await tempUser.deleteOne();
+
 
     return res.status(200)
     .json(
@@ -101,7 +112,7 @@ const registerUser = asyncHandler( async (req,res) => {
         throw new ApiError(400,"Image did not uploaded successfully to cloudinary! Please try again !");
     }
 
-    const user = await User.create({
+    const user = await TempUser.create({
         fullName,
         avatar : {
             public_id : avatar.public_id,
@@ -116,7 +127,7 @@ const registerUser = asyncHandler( async (req,res) => {
         username : username.toLowerCase()
     })
 
-    const createdUser = await User.findById(user._id).select("-password -refreshToken");
+    const createdUser = await TempUser.findById(user._id).select("-password");
 
     if(!createdUser){
         throw new ApiError(501,"Something went wrong while creating the user");
@@ -130,9 +141,95 @@ const registerUser = asyncHandler( async (req,res) => {
     const url = `${process.env.BASE_URL}/users/${createdUser._id}/verify/${token.token}`;
     await sendMail(createdUser.email,"Email Verification",url, createdUser._id);
 
-    return res.status(201).json(
-        new ApiResponse(200,createdUser,"Verification Link send to the email ! Please Verify !!")
-    );
+    await delay(5000);
+
+    const emailStatus = await checkEmailBounce(createdUser.email, createdUser._id);
+    if (emailStatus) {
+        await TempUser.deleteOne({_id : createdUser._id});
+        throw new ApiError(401, "Email does not exist, please provide a valid email.");
+    } else {
+        return res.status(201).json(
+            new ApiResponse(200, createdUser, "Verification link sent to the email! Please verify.")
+        );
+    }
+})
+
+const forgotPasswordEmail = asyncHandler( async(req,res) => {
+
+    // First user should click on start recovery so that he or she will hit this service
+    // from this service we will send a email to the user 
+    // the user clicks the url on the mail
+    /* should redirec to the frontend page where he/she will give newPassword and confirm password 
+    and make sure that the link expires in some 15mins*/ 
+    // when the user clicks the submit then it should hit new service which changes the password.
+
+    const {email} = req.body;
+
+    const user = await User.findOne({ email : email })
+
+    if(!user){
+        throw new ApiError(401,"User Not Found");
+    }
+
+    let token = await Token.findOne({ userId : user._id })
+
+    if(!token){
+        token = await new Token({
+            userId : user._id,
+            token : crypto.randomBytes(32).toString("hex")
+        }).save();
+    }
+
+    const url = `${process.env.BASE_URL}/users/forgotPassword/${token.token}`;
+    await sendMail(user.email,"Email Verification",url, user._id);
+
+    return res
+    .status(200)
+    .json(
+        new ApiResponse(200,{},"Email Send Successfully to Change the password")
+    )
+
+})
+
+const forgotPassword = asyncHandler(async(req,res) => {
+    const token = req.params.token;
+    const {newPassword} = req.body;
+
+    console.log(token);
+    console.log(newPassword);
+
+    const userToken = await Token.findOne({token : token});
+    if(!userToken){
+        throw new ApiError(404,"Invalid Token ! Please Try Again");
+    }
+
+    const user = await User.findById({_id : userToken.userId});
+
+    if(!user){
+        throw new ApiError(401,"User Not Found");
+    }
+
+    const password = await User.makeEncryption(newPassword);
+    console.log(password);
+
+    const updatedUser = await User.findByIdAndUpdate({_id : userToken.userId},
+        {
+            password : password
+        },
+        {
+            new : true
+        }
+    )
+
+    if(!updatedUser){
+        throw new ApiError(501,"Something went wrong while updating the password!");
+    }
+
+    return res
+    .status(200)
+    .json(
+        new ApiResponse(200,updatedUser,"Password Updated Successfully")
+    )
 })
 
 const loginUser = asyncHandler( async(req,res) => {
@@ -414,5 +511,8 @@ export {
     updateAccountDetails,
     updateUserAvatar,
     updateUserCoverImage,
-    verifyEmail
+    verifyEmail,
+    generateAccessAndRefreshTokens,
+    forgotPasswordEmail,
+    forgotPassword
 }

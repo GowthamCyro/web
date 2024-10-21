@@ -4,10 +4,11 @@ import {Link,NavLink,useNavigate} from 'react-router-dom'
 
 function Header({user,setUser}) {
     const navigate = useNavigate();
+    console.log(user);
 
     const handleLogout = () => {
         try {
-            axios.get('http://localhost:7000/api/v1/users/logout', { withCredentials: true })
+            axios.get('api/v1/users/logout', { withCredentials: true })
             .then((response) => {
                 setUser(null); 
                 navigate('/'); 
@@ -35,10 +36,9 @@ function Header({user,setUser}) {
                     {user?(
                         <>
                         <Link
-                            to="/signIn"
                             className="text-gray-800 hover:bg-gray-50 focus:ring-4 focus:ring-gray-300 font-medium rounded-lg text-sm px-4 lg:px-5 py-2 lg:py-2.5 mr-2 focus:outline-none"
                         >
-                            {user.username}
+                            {user?.data?.username}
                         </Link>
                         <Link
                             onClick={handleLogout}

@@ -7,14 +7,18 @@ import Contact from './components/Contact/Contact.jsx'
 import Login from './components/Login/Login.jsx'
 import Signup from './components/Signup/Signup.jsx'
 import EmailVerify from './components/EmailVerify/EmailVerify.jsx'
+import UpdateDetails from './components/UpdateDetails/UpdateDetails.jsx';
+import ForgotPassword from './components/ForgotPassword/ForgotPassword.jsx';
 import { useLocation,useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import { ToastContainer, toast } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
+import ForgotPasswordEmail from './components/ForgotPasswordEmail/ForgotPasswordEmail.jsx';
 
 
 function ProtectedRoute({ element, user }) {
   const [showBlur, setShowBlur] = useState(false); 
+  const [loading, setLoading] = useState(true);
   const navigate = useNavigate();
 
   useEffect(() => { 
@@ -29,7 +33,6 @@ function ProtectedRoute({ element, user }) {
                 color : 'white'
               }
           });
-
           setTimeout(() => {
               navigate('/signIn');
           }, 1000); 
@@ -37,7 +40,6 @@ function ProtectedRoute({ element, user }) {
   }, [user, navigate]);
 
   return user ? element : (
-      // Apply the blur immediately
       <div style={{ filter: showBlur ? 'blur(10px)' : 'none', pointerEvents: showBlur ? 'none' : 'auto' }}>
           {element}
       </div>
@@ -52,7 +54,7 @@ function App() {
   useEffect(() => {
       const getUser = () => {
           axios
-              .get("http://localhost:7000/api/v1/users/getCurrentUser", { withCredentials: true })
+              .get("api/v1/users/getCurrentUser", { withCredentials: true })
               .then((response) => {
                   setUser(response.data);
               })
@@ -72,8 +74,11 @@ function App() {
                   <Route path='contact' element={<ProtectedRoute user={user} element={<Contact />} />} />
               </Route>
               <Route path='/signIn' element={<Login />} />
+              <Route path='/forgotPassword' element={<ForgotPassword />} />
+              <Route path='/google' element={<UpdateDetails />}/>
               <Route path='/signUp' element={<Signup />} />
-              <Route path='/users/:id/verify/:token' element={<EmailVerify />} />
+              <Route path='/users/:id/verify/:token' element={<EmailVerify />} /> 
+              <Route path='/users/forgotPassword/:token' element={<ForgotPasswordEmail/>}/>        
           </Routes>
           <ToastContainer />
       </div>

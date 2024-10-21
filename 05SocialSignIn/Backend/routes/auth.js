@@ -7,9 +7,11 @@ router.get("/login/success", (req, res) => {
   if (req.user) {
     res.status(200).json({
       success: true,
-      message: "successfull",
+      message: "successful",
       user: req.user,
     });
+  } else {
+    res.status(403).json({ success: false, message: "Not authenticated" });
   }
 });
 
@@ -20,28 +22,36 @@ router.get("/login/failed", (req, res) => {
   });
 });
 
-router.get("/logout", (req, res) => {
-  req.logout();
-  res.redirect(CLIENT_URL);
+router.get("/logout", (req, res, next) => {
+  req.logout((err) => {
+    if (err) {
+      return next(err);  
+    }
+    req.session = null;  
+    res.redirect(CLIENT_URL);  
+  });
+  console.log("LoggedOut")
 });
 
-router.get("/cookie",(req,res) => {
+router.get("/cookie", (req, res) => {
   const options = {
-    httpOnly : true,
-    secure : true
-  }
+    httpOnly: true,
+    secure: process.env.NODE_ENV === 'production', 
+  };
 
-  return res.cookie("accessToken","Hellowalsndfaldjflasjdfljasdf",options).json({"Hi":"hello"});
-})
+  return res
+    .cookie("accessToken", "Hellowalsndfaldjflasjdfljasdf", options)
+    .json({ "Hi": "hello" });
+});
 
-router.get("/google", passport.authenticate("google", { scope: ["profile","email"] }));
+router.get("/google", passport.authenticate("google", { scope: ["profile", "email"] }));
 
 router.get(
   "/google/callback",
   passport.authenticate("google", {
-    successRedirect: CLIENT_URL,
-    failureRedirect: "/login/failed",
+    successRedirect: CLIENT_URL,  
+    failureRedirect: "/login/failed",  
   })
 );
 
-module.exports = router
+module.exports = router;

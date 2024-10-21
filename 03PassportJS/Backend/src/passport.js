@@ -1,16 +1,17 @@
-const GoogleStrategy = require("passport-google-oauth20").Strategy;
-const passport = require("passport");
+import { Strategy as GoogleStrategy } from "passport-google-oauth20";
+import passport from "passport";
 
 passport.use(
   new GoogleStrategy(
     {
       clientID: process.env.GOOGLE_CLIENT_ID,
       clientSecret: process.env.GOOGLE_CLIENT_SECRET,
-      callbackURL: "/auth/google/callback",
+      callbackURL: "/api/v1/socialSign/google/callback",
     },
-    function (accessToken, refreshToken, profile, done) {
-      done(null, profile);  
-      console.log(profile); 
+
+    async function (accessTokenT, refreshTokenT, profile, done) { 
+      console.log(profile);
+      done(null,profile);
     }
   )
 );
